@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>아주대 졸업 플래너 — SW + 마이크로 2개</title>
+<style>
+  :root{
+    --ink:#17233B; --paper:#EEF1F6; --line:#DDE3EC; --card:#FFFFFF;
+    --blue:#2450C8; --warn:#B45309; --ok:#059669; --mut:#7A8699;
+  }
+  *{box-sizing:border-box; margin:0}
+  html,body{height:100%}
+  body{
+    font-family:'Pretendard Variable',Pretendard,-apple-system,'Apple SD Gothic Neo','Noto Sans KR',sans-serif;
+    background:var(--paper); color:var(--ink); overflow:hidden;
+    display:flex; flex-direction:column; font-size:13px;
+  }
+  button{font:inherit; cursor:pointer; border:none; background:none}
+  input,select,textarea{font:inherit}
+
+  header{background:#fff; border-bottom:1px solid var(--line); padding:8px 14px; display:flex; align-items:center; gap:12px}
+  header h1{font-size:15px; font-weight:800; letter-spacing:-.02em; white-space:nowrap}
+  header h1 small{color:var(--mut); font-weight:600; font-size:11px}
+  #gpaBadge{font-size:11px; font-weight:800; color:var(--blue); background:#EEF3FF; border-radius:8px; padding:3px 8px; white-space:nowrap}
+  #chips{display:flex; gap:6px; flex:1; min-width:0; overflow-x:auto}
+  .chip{border:2px solid var(--line); border-radius:10px; padding:3px 10px; background:#F8FAFD; text-align:left; white-space:nowrap; line-height:1.25}
+  .chip b{display:block; font-size:11px}
+  .chip span{font-size:10.5px; color:var(--mut)}
+  .chip.done span{color:var(--ok); font-weight:700}
+  .ctrl{display:flex; align-items:center; gap:6px; font-size:11.5px; white-space:nowrap}
+  .ctrl select,.ctrl input{border:1px solid var(--line); border-radius:7px; padding:2px 5px; font-size:11.5px}
+  .ctrl input[type=number]{width:48px}
+  .btn{border:1px solid var(--line); border-radius:8px; padding:4px 10px; font-weight:600; font-size:11.5px; background:#fff}
+  .btn:hover{background:#F4F6FA}
+  .btn.pri{background:var(--blue); border-color:var(--blue); color:#fff}
+  .btn.pri:hover{filter:brightness(1.08)}
+
+  main{flex:1; min-height:0; display:grid; grid-template-columns:272px 1fr 296px; gap:10px; padding:10px 14px}
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:14px; min-height:0; display:flex; flex-direction:column; overflow:hidden}
+  .panel>.scroll{overflow-y:auto; padding:12px; flex:1}
+  .panel h2{font-size:12.5px; font-weight:800; margin-bottom:8px}
+
+  .rule{margin-bottom:9px}
+  .rule .row{display:flex; justify-content:space-between; gap:8px; align-items:flex-start}
+  .rule .lb{font-size:11.5px; line-height:1.35}
+  .rule .num{font-size:11px; font-weight:700; color:var(--mut); white-space:nowrap}
+  .rule .num.ok{color:var(--ok)}
+  .rule .bar{height:5px; border-radius:99px; background:#E7EBF2; margin-top:3px; overflow:hidden}
+  .rule .bar i{display:block; height:100%; border-radius:99px}
+  .rule .dt{font-size:10px; color:#9AA4B5; margin-top:2px; line-height:1.3}
+  .tick{color:var(--ok)} .untick{color:#C7CEDB}
+  .ovl{background:#FFF7E8; border:1px solid #F2DDAE; border-radius:12px; padding:10px 12px; margin:0 12px 12px; font-size:11px; color:#8A5A00}
+  .ovl b{display:block; margin-bottom:4px; font-size:11.5px}
+  .ovl li{margin-left:14px; margin-top:2px}
+
+  #grid{display:grid; grid-template-columns:repeat(4,1fr); grid-auto-rows:minmax(150px,1fr); gap:8px; min-height:0; overflow-y:auto}
+  .sem{background:var(--card); border:2px solid transparent; border-radius:13px; padding:8px 9px; display:flex; flex-direction:column; min-height:0}
+  .sem:hover{border-color:#C9D3E4}
+  .sem.sel{border-color:var(--blue)}
+  .sem.past{background:#F3F5F9}
+  .sem.season{background:#FBFDF4; border-style:dashed; border-color:#D6DEBB}
+  .sem.season.sel{border-color:var(--blue)}
+  .sem .hd{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px; gap:4px}
+  .sem .hd h3{font-size:12.5px; font-weight:800; white-space:nowrap}
+  .sem .hd .done-tag{font-size:9.5px; color:var(--ok); font-weight:800; margin-left:3px}
+  .sem .hd .cr{font-size:11px; font-weight:700; color:var(--mut); white-space:nowrap}
+  .sem .hd .cr.over{color:#DC2626}
+  .sem .hd .rm{color:#B7BFCD; font-size:12px; padding:0 2px}
+  .sem .hd .rm:hover{color:#DC2626}
+  .sem .list{flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:4px; min-height:0}
+  .sem .empty{color:#C4CBD8; font-size:10.5px; text-align:center; padding:14px 0}
+
+  .cc{display:flex; align-items:center; gap:5px; border:1px solid var(--line); background:#F8FAFD; border-radius:8px; padding:3px 6px; font-size:11.5px; cursor:grab}
+  .cc:active{cursor:grabbing}
+  .cc.warn{border-color:#F0C36D; background:#FFF9EC}
+  .cc.pending{opacity:.65; border-style:dashed}
+  .cc .stripe{width:3px; align-self:stretch; border-radius:99px; flex:none}
+  .cc .nm{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600}
+  .cc .cr{color:#9AA4B5; font-size:10.5px}
+  .cc .dot{width:7px; height:7px; border-radius:99px; flex:none}
+  .cc .x{color:#B7BFCD; font-size:13px; padding:0 1px; line-height:1}
+  .cc .x:hover{color:#DC2626}
+  .cc .dup{color:#D97706; font-size:10px}
+  .cc .wi{color:#D97706; font-size:11px}
+  .cc .rt{font-size:9.5px; font-weight:800; color:#B45309; white-space:nowrap}
+  .grade{font-size:9.5px; font-weight:800; border-radius:5px; padding:1px 4px; flex:none}
+  .gA{background:#E5F6EE; color:#047857} .gB{background:#E9F0FF; color:#2450C8}
+  .gC{background:#FFF4DE; color:#B45309} .gD{background:#FFE9DB; color:#C2410C}
+  .gF{background:#FDE5E5; color:#DC2626} .gP{background:#EEF1F6; color:#5B6B8C}
+
+  #poolHead{display:flex; justify-content:space-between; align-items:center; gap:6px; padding:12px 12px 0}
+  #poolHead select{border:1px solid var(--line); border-radius:7px; padding:2px 5px; font-size:11px}
+  #poolHint{font-size:10px; color:#9AA4B5; padding:4px 12px 6px; line-height:1.4}
+  .pc{display:flex; align-items:center; gap:6px; border:1px solid var(--line); border-radius:10px; padding:5px 7px; background:#F8FAFD; margin-bottom:5px; cursor:grab}
+  .pc:hover{background:#fff; box-shadow:0 1px 4px rgba(23,35,59,.08)}
+  .pc .stripe{width:4px; align-self:stretch; border-radius:99px; flex:none}
+  .pc .body{flex:1; min-width:0}
+  .pc .nm{font-size:11.8px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .pc .mt{font-size:10px; color:#9AA4B5; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .pc .add{width:20px; height:20px; border-radius:99px; background:var(--blue); color:#fff; font-size:14px; line-height:1; flex:none; opacity:0}
+  .pc:hover .add{opacity:1}
+  .pc .dot{width:7px; height:7px; border-radius:99px; display:inline-block; margin-left:2px}
+  #newC{display:flex; gap:4px; padding:9px 12px; border-top:1px solid var(--line)}
+  #newC input[type=text]{flex:1; min-width:0; border:1px solid var(--line); border-radius:7px; padding:3px 6px; font-size:11px}
+  #newC input[type=number]{width:40px; border:1px solid var(--line); border-radius:7px; padding:3px 4px; font-size:11px}
+  #newC select{border:1px solid var(--line); border-radius:7px; font-size:10.5px; max-width:76px}
+  #newC button{background:var(--ink); color:#fff; border-radius:7px; padding:0 9px; font-size:11px; font-weight:700}
+
+  /* 우클릭 메뉴 */
+  #menu{position:fixed; z-index:60; background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 8px 28px rgba(10,16,30,.18); padding:6px; display:none; min-width:190px}
+  #menu .ttl{font-size:10.5px; font-weight:800; color:var(--mut); padding:4px 8px 6px; border-bottom:1px solid var(--line); margin-bottom:4px; max-width:230px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  #menu .mi{display:block; width:100%; text-align:left; padding:6px 8px; border-radius:8px; font-size:12px; font-weight:600}
+  #menu .mi:hover{background:#F1F4FA}
+  #menu .sec{font-size:10px; color:var(--mut); padding:6px 8px 2px; font-weight:700}
+  #menu .grades{display:grid; grid-template-columns:repeat(5,1fr); gap:3px; padding:2px 6px 6px}
+  #menu .grades button{border:1px solid var(--line); border-radius:6px; font-size:10.5px; font-weight:800; padding:3px 0}
+  #menu .grades button:hover{background:#F1F4FA}
+  #menu .grades button.on{background:var(--ink); color:#fff; border-color:var(--ink)}
+
+  #modalBg{position:fixed; inset:0; background:rgba(10,16,30,.45); display:none; align-items:center; justify-content:center; z-index:40}
+  #modalBg.show{display:flex}
+  #modal{background:#fff; border-radius:16px; padding:18px; width:min(680px,90vw)}
+  #modal textarea{width:100%; height:300px; border:1px solid var(--line); border-radius:10px; padding:10px; font-family:ui-monospace,monospace; font-size:10.5px; margin-top:10px}
+  #modal .foot{display:flex; justify-content:flex-end; gap:8px; margin-top:10px}
+  #toast{position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:8px 16px; border-radius:10px; font-size:12px; display:none; z-index:70}
+</style>
+</head>
+<body>
+<header>
+  <h1>아주대 졸업 플래너 <small id="subTtl"></small> <small style="color:#B45309;font-weight:700">비공식 · 최종 확인은 학사팀</small></h1>
+  <span id="gpaBadge">평점 -</span>
+  <div id="chips"></div>
+  <div class="ctrl">완료
+    <select id="doneSel"></select>
+    상한 <input id="capIn" type="number" min="9" max="30" value="21">
+    <button class="btn" id="seasonBtn">계절＋</button>
+    <button class="btn pri" id="autoBtn">자동 배치</button>
+    <button class="btn" id="saveBtn">💾 저장</button>
+    <button class="btn" id="openBtn">📂 열기</button>
+    <input type="file" id="openFile" accept=".json" style="display:none">
+    <button class="btn" id="ioBtn">JSON</button>
+    <button class="btn" id="deptBtn">전공 선택</button>
+    <button class="btn" id="clearBtn">비우기</button>
+  </div>
+</header>
+
+<main>
+  <div class="panel" id="leftP"><div class="scroll" id="rules"></div><div id="ovlBox"></div></div>
+  <div id="grid"></div>
+  <div class="panel" id="rightP">
+    <div id="poolHead"><h2 style="margin:0">미배치 과목 <span id="poolCnt" style="color:var(--mut);font-weight:600"></span></h2><select id="catSel"></select></div>
+    <div id="poolHint"></div>
+    <div class="scroll" id="pool" style="padding-top:2px"></div>
+    <div id="newC">
+      <input type="text" id="ncName" placeholder="직접 추가 (예: 회귀분석)">
+      <input type="number" id="ncCr" value="3" min="1" max="6">
+      <select id="ncCat"></select>
+      <button id="ncAdd">추가</button>
+    </div>
+  </div>
+</main>
+
+<div id="menu"></div>
+<div id="modalBg"><div id="modal">
+  <b id="modalTitle">계획 JSON 내보내기 / 가져오기</b>
+  <p id="modalDesc" style="font-size:11px;color:var(--mut);margin-top:4px"></p>
+  <div id="pickerBox" style="display:none;margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:12px">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <b style="font-size:12px">본전공</b>
+      <select id="majorSel" style="border:1px solid var(--line);border-radius:8px;padding:3px 6px;font-size:12px"></select>
+      <button class="btn pri" id="applyPick">이 조합으로 시작</button>
+      <span style="font-size:10.5px;color:var(--mut)">⚠ 현재 계획은 초기화돼요</span>
+    </div>
+    <div style="font-size:12px;font-weight:700;margin:10px 0 4px">마이크로전공 (여러 개 선택 가능)</div>
+    <div id="microChecks" style="display:grid;grid-template-columns:repeat(2,1fr);gap:3px 12px;font-size:11.5px"></div>
+  </div>
+  <textarea id="ioTa"></textarea>
+  <div class="foot"><button class="btn pri" id="ioImport">가져오기</button><button class="btn" id="ioClose">닫기</button></div>
+</div></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ═════════ 데이터 ═════════ */
+const CATALOG = {"meta": {"school": "아주대학교", "year": 2025, "source": "2025 요람 (소프트웨어융합대학 / 의과대학)", "excluded": "의학과(요청으로 제외)·인공지능융합전공(복수/부전공 전용)·글로벌IT전공·메타버스기획 마이크로는 미포함"}, "majors": [{"id": "sw", "name": "소프트웨어학과", "years": 4, "plans": [{"id": "sw", "name": "소프트웨어학과 (일반과정)", "type": "major", "color": "#2450C8", "rules": [{"t": "total", "min": 128, "label": "총 졸업학점 128"}, {"t": "cat", "cat": "대학필수", "min": 22, "label": "대학필수 22학점"}, {"t": "cat", "cat": "BSM수학", "min": 6, "label": "BSM 수학 6학점"}, {"t": "cat", "cat": "BSM기초과학", "min": 7, "label": "BSM 기초과학 7학점"}, {"t": "cat", "cat": "전공기초", "min": 7, "label": "전공기초 7학점"}, {"t": "cat", "cat": "전공필수", "min": 32, "label": "전공필수 32학점 (지정 10과목)"}, {"t": "cat", "cat": "전공선택", "min": 10, "capGroup": "현장실습", "capMax": 6, "label": "전공선택 10학점 (현장실습군 최대 6학점 인정)"}, {"t": "micro", "min": 2, "label": "전공 이수원칙 — 마이크로전공 2개 이상 (또는 심화과정/복수·부전공)"}, {"t": "gpa", "min": 2.0, "label": "평점 2.0 이상 (성적 입력 시 자동 계산)"}, {"t": "manual", "label": "공인영어 성적 (TOEIC 730 · TEPS 605 · OPIc IM1 등, 2025 입학자 기준)"}]}], "courses": [{"n": "아주인-신입생을 위한 마중물", "c": 1, "k": "대학필수", "o": [1], "r": 1, "p": []}, {"n": "아주상상프로젝트", "c": 3, "k": "대학필수", "o": [1], "r": 1, "p": []}, {"n": "대학글쓰기", "c": 3, "k": "대학필수", "o": [1], "r": 1, "p": []}, {"n": "영어", "c": 3, "k": "대학필수", "o": [2], "r": 2, "p": []}, {"n": "영역별교양 1 (역사와 철학)", "c": 3, "k": "대학필수", "o": [], "r": 1, "p": []}, {"n": "영역별교양 2 (문학과 예술)", "c": 3, "k": "대학필수", "o": [], "r": 3, "p": []}, {"n": "영역별교양 3 (인간과 사회)", "c": 3, "k": "대학필수", "o": [], "r": 3, "p": []}, {"n": "영역별교양 4 (연결과 통합)", "c": 3, "k": "대학필수", "o": [], "r": 4, "p": []}, {"n": "수학1", "c": 3, "k": "BSM수학", "o": [1], "r": 1, "p": []}, {"n": "수학2", "c": 3, "k": "BSM수학", "o": [2], "r": 2, "p": []}, {"n": "기초과학 Set 택1 (물리학+실험 / 생명과학+실험)", "c": 4, "k": "BSM기초과학", "o": [2], "r": 2, "p": []}, {"n": "기초과학 택1 (물리학/생명과학/화학)", "c": 3, "k": "BSM기초과학", "o": [4], "r": 4, "p": []}, {"n": "SW커리어세미나", "c": 1, "k": "전공기초", "o": [1], "r": 1, "p": []}, {"n": "확률및통계1", "c": 3, "k": "전공기초", "o": [3, 5], "r": 3, "p": []}, {"n": "확률및통계2/선형대수1 택1", "c": 3, "k": "전공기초", "o": [3, 4], "r": 4, "p": []}, {"n": "컴퓨터프로그래밍및실습", "c": 4, "k": "전공필수", "o": [1, 3], "r": 1, "p": []}, {"n": "이산수학", "c": 3, "k": "전공필수", "o": [1, 2], "r": 2, "p": []}, {"n": "인공지능입문", "c": 3, "k": "전공필수", "o": [2, 3], "r": 2, "p": []}, {"n": "객체지향프로그래밍및실습", "c": 4, "k": "전공필수", "o": [3, 4], "r": 3, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "자료구조", "c": 3, "k": "전공필수", "o": [3, 4], "r": 3, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "컴퓨터구조", "c": 3, "k": "전공필수", "o": [3, 4], "r": 3, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "알고리즘", "c": 3, "k": "전공필수", "o": [4, 5], "r": 4, "p": ["자료구조"]}, {"n": "컴퓨터네트워크", "c": 3, "k": "전공필수", "o": [4, 5], "r": 4, "p": []}, {"n": "시스템프로그래밍", "c": 3, "k": "전공필수", "o": [4, 5], "r": 4, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "운영체제", "c": 3, "k": "전공필수", "o": [5, 6], "r": 5, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "디지털회로", "c": 3, "k": "전공선택", "o": [2, 3], "r": 2, "p": []}, {"n": "컴퓨터통신", "c": 3, "k": "전공선택", "o": [5, 6], "r": 5, "p": []}, {"n": "데이터베이스", "c": 3, "k": "전공선택", "o": [5, 6], "r": 5, "p": ["자료구조"]}, {"n": "정보보호", "c": 3, "k": "전공선택", "o": [5, 6], "r": 5, "p": ["자료구조"]}, {"n": "오픈소스SW입문", "c": 3, "k": "전공선택", "o": [5, 6], "r": 5, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "기계학습", "c": 3, "k": "전공선택", "o": [5, 6], "r": 5, "p": ["자료구조"]}, {"n": "컴파일러", "c": 3, "k": "전공선택", "o": [5, 6], "r": 6, "p": ["자료구조"]}, {"n": "데이터마이닝", "c": 3, "k": "전공선택", "o": [6, 7], "r": 6, "p": ["자료구조"]}, {"n": "IT전문영어", "c": 3, "k": "전공선택", "o": [5, 6], "r": 6, "p": ["영어"]}, {"n": "IT집중교육1", "c": 6, "k": "전공선택", "o": [6], "r": 6, "p": ["객체지향프로그래밍및실습"]}, {"n": "IT집중교육2", "c": 6, "k": "전공선택", "o": [6], "r": 6, "p": ["객체지향프로그래밍및실습"]}, {"n": "자기주도프로젝트", "c": 3, "k": "전공선택", "o": [5, 6], "r": 6, "p": ["객체지향프로그래밍및실습"]}, {"n": "계산이론", "c": 3, "k": "전공선택", "o": [6], "r": 6, "p": ["이산수학"]}, {"n": "지능형사물인터넷", "c": 3, "k": "전공선택", "o": [6], "r": 6, "p": ["운영체제"]}, {"n": "소프트웨어공학", "c": 3, "k": "전공선택", "o": [5, 6], "r": 6, "p": ["객체지향프로그래밍및실습"]}, {"n": "디지털포렌식", "c": 3, "k": "전공선택", "o": [6], "r": 6, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "웹시스템설계", "c": 3, "k": "전공선택", "o": [6], "r": 6, "p": ["객체지향프로그래밍및실습"]}, {"n": "임베디드소프트웨어", "c": 3, "k": "전공선택", "o": [6], "r": 6, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "현대암호이론및응용", "c": 3, "k": "전공선택", "o": [6], "r": 6, "p": []}, {"n": "실전코딩1", "c": 3, "k": "전공선택", "o": [5, 6], "r": 5, "p": []}, {"n": "실전코딩2", "c": 3, "k": "전공선택", "o": [5, 6], "r": 6, "p": []}, {"n": "블록체인과 IoT", "c": 3, "k": "전공선택", "o": [6], "r": 6, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "AI집중교육1", "c": 6, "k": "전공선택", "o": [6], "r": 6, "p": []}, {"n": "AI집중교육2", "c": 6, "k": "전공선택", "o": [6], "r": 6, "p": []}, {"n": "네트워크소프트웨어", "c": 3, "k": "전공선택", "o": [6], "r": 6, "p": ["컴퓨터네트워크"]}, {"n": "모델링시뮬레이션", "c": 3, "k": "전공선택", "o": [7], "r": 7, "p": ["자료구조"]}, {"n": "컴퓨터비젼", "c": 3, "k": "전공선택", "o": [7, 8], "r": 7, "p": ["자료구조"]}, {"n": "SW창업론", "c": 3, "k": "전공선택", "o": [7], "r": 7, "p": []}, {"n": "모바일네트워크", "c": 3, "k": "전공선택", "o": [7], "r": 7, "p": ["컴퓨터네트워크"]}, {"n": "컴퓨터그래픽스", "c": 3, "k": "전공선택", "o": [7], "r": 7, "p": ["자료구조"]}, {"n": "자기주도연구1", "c": 3, "k": "전공선택", "o": [7], "r": 7, "p": []}, {"n": "분산시스템", "c": 3, "k": "전공선택", "o": [7, 8], "r": 7, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "인공지능컴퓨터시스템", "c": 3, "k": "전공선택", "o": [7], "r": 7, "p": []}, {"n": "AI임베디드시스템", "c": 3, "k": "전공선택", "o": [7], "r": 7, "p": []}, {"n": "AIoT실시간서비스설계", "c": 3, "k": "전공선택", "o": [7], "r": 7, "p": []}, {"n": "AI통신네트워크", "c": 3, "k": "전공선택", "o": [8], "r": 8, "p": []}, {"n": "분산병렬컴퓨팅", "c": 3, "k": "전공선택", "o": [8], "r": 8, "p": []}, {"n": "SW캡스톤디자인", "c": 6, "k": "전공선택", "o": [7, 8], "r": 8, "p": []}, {"n": "SW산업세미나", "c": 1, "k": "전공선택", "o": [8], "r": 8, "p": []}, {"n": "고급컴퓨터구조", "c": 3, "k": "전공선택", "o": [8], "r": 8, "p": ["컴퓨터구조"]}, {"n": "인간과컴퓨터상호작용", "c": 3, "k": "전공선택", "o": [8], "r": 8, "p": ["알고리즘"]}, {"n": "인공지능", "c": 3, "k": "전공선택", "o": [7, 8], "r": 8, "p": ["자료구조"]}, {"n": "자기주도연구2", "c": 3, "k": "전공선택", "o": [7, 8], "r": 8, "p": []}, {"n": "SW현장실습1", "c": 3, "k": "전공선택", "o": [7], "r": 7, "p": [], "g": "현장실습"}, {"n": "SW현장실습2", "c": 3, "k": "전공선택", "o": [7], "r": 7, "p": [], "g": "현장실습"}, {"n": "SW현장실습3", "c": 3, "k": "전공선택", "o": [7], "r": 7, "p": [], "g": "현장실습"}, {"n": "SW현장실습4", "c": 3, "k": "전공선택", "o": [8], "r": 8, "p": [], "g": "현장실습"}, {"n": "SW현장실습5", "c": 3, "k": "전공선택", "o": [8], "r": 8, "p": [], "g": "현장실습"}, {"n": "SW현장실습6", "c": 3, "k": "전공선택", "o": [8], "r": 8, "p": [], "g": "현장실습"}, {"n": "창업실습1", "c": 3, "k": "전공선택", "o": [7, 8], "r": 7, "p": [], "g": "현장실습"}, {"n": "창업실습2", "c": 3, "k": "전공선택", "o": [7, 8], "r": 8, "p": [], "g": "현장실습"}, {"n": "창업현장실습1", "c": 3, "k": "전공선택", "o": [7, 8], "r": 7, "p": [], "g": "현장실습"}, {"n": "창업현장실습2", "c": 3, "k": "전공선택", "o": [7, 8], "r": 8, "p": [], "g": "현장실습"}], "note": "2025 요람. 영역별교양·기초과학·수학 택1은 대표 슬롯."}, {"id": "cyber", "name": "사이버보안학과", "years": 4, "plans": [{"id": "cyber", "name": "사이버보안학과 (일반과정)", "type": "major", "color": "#2450C8", "rules": [{"t": "total", "min": 128, "label": "총 졸업학점 128"}, {"t": "cat", "cat": "대학필수", "min": 23, "label": "대학필수 23학점"}, {"t": "cat", "cat": "BSM수학", "min": 6, "label": "BSM 수학 6학점"}, {"t": "cat", "cat": "BSM기초과학", "min": 4, "label": "BSM 기초과학 4학점"}, {"t": "cat", "cat": "전공기초", "min": 6, "label": "전공기초 6학점 (세부 과목은 요람 확인)"}, {"t": "cat", "cat": "전공필수", "min": 32, "label": "전공필수 32학점 (지정 10과목)"}, {"t": "cat", "cat": "전공선택", "min": 12, "label": "전공선택 12학점 (심화과정은 24학점 + 트랙 이수)"}, {"t": "manual", "label": "전공 이수원칙 — 심화과정+트랙(Cloud/BigData 또는 IoT/Mobile) 이수, 또는 복수/부전공"}, {"t": "gpa", "min": 2.0, "label": "평점 2.0 이상 (성적 입력 시 자동 계산)"}, {"t": "manual", "label": "공인영어 성적 (TOEIC 730 등, 2025 입학자 기준)"}, {"t": "manual", "label": "산학프로젝트 과목군 1개 이상 + 컴퓨터프로그래밍및실습 ABF"}]}], "courses": [{"n": "아주희망 전공진로탐색", "c": 1, "k": "대학필수", "o": [], "r": 1, "p": []}, {"n": "아주인-신입생을 위한 마중물", "c": 1, "k": "대학필수", "o": [], "r": 1, "p": []}, {"n": "아주상상프로젝트", "c": 3, "k": "대학필수", "o": [], "r": 1, "p": []}, {"n": "대학글쓰기", "c": 3, "k": "대학필수", "o": [], "r": 1, "p": []}, {"n": "영어", "c": 3, "k": "대학필수", "o": [], "r": 2, "p": []}, {"n": "영역별교양 1", "c": 3, "k": "대학필수", "o": [], "r": 1, "p": []}, {"n": "영역별교양 2", "c": 3, "k": "대학필수", "o": [], "r": 3, "p": []}, {"n": "영역별교양 3", "c": 3, "k": "대학필수", "o": [], "r": 3, "p": []}, {"n": "영역별교양 4", "c": 3, "k": "대학필수", "o": [], "r": 4, "p": []}, {"n": "수학1", "c": 3, "k": "BSM수학", "o": [], "r": 1, "p": []}, {"n": "수학2", "c": 3, "k": "BSM수학", "o": [], "r": 2, "p": []}, {"n": "기초과학 Set 택1 (물리학+실험 / 생명과학+실험)", "c": 4, "k": "BSM기초과학", "o": [], "r": 2, "p": []}, {"n": "확률및통계1", "c": 3, "k": "전공기초", "o": [], "r": 3, "p": []}, {"n": "선형대수1", "c": 3, "k": "전공기초", "o": [], "r": 4, "p": []}, {"n": "사이버보안입문", "c": 3, "k": "전공필수", "o": [], "r": 1, "p": []}, {"n": "이산수학", "c": 3, "k": "전공필수", "o": [], "r": 1, "p": []}, {"n": "컴퓨터프로그래밍및실습", "c": 4, "k": "전공필수", "o": [], "r": 1, "p": []}, {"n": "자료구조", "c": 3, "k": "전공필수", "o": [], "r": 2, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "인공지능입문", "c": 3, "k": "전공필수", "o": [], "r": 2, "p": []}, {"n": "컴퓨터구조", "c": 3, "k": "전공필수", "o": [], "r": 3, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "객체지향프로그래밍및실습", "c": 4, "k": "전공필수", "o": [], "r": 3, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "현대암호이론및응용", "c": 3, "k": "전공필수", "o": [], "r": 4, "p": []}, {"n": "운영체제", "c": 3, "k": "전공필수", "o": [], "r": 4, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "컴퓨터네트워크", "c": 3, "k": "전공필수", "o": [], "r": 4, "p": []}, {"n": "정보보호법제도와IP정책", "c": 3, "k": "전공선택", "o": [], "r": 3, "p": []}, {"n": "알고리즘", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": ["자료구조"]}, {"n": "취약점분석", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": []}, {"n": "정보보호", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": ["자료구조"]}, {"n": "시스템소프트웨어보안", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "데이터베이스", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": ["자료구조"]}, {"n": "오픈소스SW입문", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "IoT플랫폼보안", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "기계학습", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": ["자료구조"]}, {"n": "사이버보안관제", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "네트워크보안및응용", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "분산클라우드컴퓨팅", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "데이터마이닝", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": ["자료구조"]}, {"n": "블록체인과 IoT", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "임베디드소프트웨어", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "소프트웨어공학", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "지능형사물인터넷", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": ["운영체제"]}, {"n": "클라우드서비스보안", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "디지털포렌식", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "실전코딩1", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "실전코딩2", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "자기주도프로젝트", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "인공지능보안", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "사이버보안캡스톤디자인", "c": 6, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "분산시스템", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "SW창업론", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "빅데이터응용보안", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "모바일네트워크", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": ["컴퓨터네트워크"]}, {"n": "자기주도연구1", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "사이버보안사례특강", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": []}, {"n": "사이버플랫폼보안", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": []}, {"n": "인공지능", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": ["자료구조"]}, {"n": "자기주도연구2", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": []}, {"n": "인간과컴퓨터상호작용", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": ["알고리즘"]}, {"n": "빅데이터와개인정보보호", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": []}, {"n": "보안현장실습1", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": [], "g": "현장실습"}, {"n": "보안현장실습2", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": [], "g": "현장실습"}, {"n": "보안현장실습3", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": [], "g": "현장실습"}, {"n": "보안현장실습4", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": [], "g": "현장실습"}, {"n": "창업실습1", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": [], "g": "현장실습"}, {"n": "창업실습2", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": [], "g": "현장실습"}, {"n": "창업현장실습1", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": [], "g": "현장실습"}, {"n": "창업현장실습2", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": [], "g": "현장실습"}], "note": "2025 요람. 전공기초 세부 과목·개설학기는 근사치 — 요람으로 확인 후 수정 권장."}, {"id": "media", "name": "디지털미디어학과", "years": 4, "plans": [{"id": "media", "name": "디지털미디어학과 (일반과정)", "type": "major", "color": "#2450C8", "rules": [{"t": "total", "min": 128, "label": "총 졸업학점 128"}, {"t": "cat", "cat": "대학필수", "min": 23, "label": "대학필수 23학점"}, {"t": "cat", "cat": "BSM수학", "min": 3, "label": "BSM 수학 3학점"}, {"t": "cat", "cat": "BSM기초과학", "min": 4, "label": "BSM 기초과학 4학점"}, {"t": "cat", "cat": "전공기초", "min": 3, "label": "전공기초 3학점"}, {"t": "cat", "cat": "전공필수", "min": 16, "label": "전공필수 16학점 (지정 5과목)"}, {"t": "cat", "cat": "전공선택", "min": 30, "label": "전공선택 30학점 (심화과정은 48학점)"}, {"t": "manual", "label": "전공 이수원칙 — 심화과정 이수 또는 복수/부전공"}, {"t": "gpa", "min": 2.0, "label": "평점 2.0 이상 (성적 입력 시 자동 계산)"}, {"t": "manual", "label": "공인영어 성적 (TOEIC 730 등, 2025 입학자 기준)"}]}], "courses": [{"n": "아주희망 전공진로탐색", "c": 1, "k": "대학필수", "o": [], "r": 1, "p": []}, {"n": "아주인-신입생을 위한 마중물", "c": 1, "k": "대학필수", "o": [], "r": 1, "p": []}, {"n": "아주상상프로젝트", "c": 3, "k": "대학필수", "o": [], "r": 1, "p": []}, {"n": "영어", "c": 3, "k": "대학필수", "o": [], "r": 1, "p": []}, {"n": "대학글쓰기", "c": 3, "k": "대학필수", "o": [], "r": 2, "p": []}, {"n": "영역별교양 1", "c": 3, "k": "대학필수", "o": [], "r": 1, "p": []}, {"n": "영역별교양 2", "c": 3, "k": "대학필수", "o": [], "r": 2, "p": []}, {"n": "영역별교양 3", "c": 3, "k": "대학필수", "o": [], "r": 3, "p": []}, {"n": "영역별교양 4", "c": 3, "k": "대학필수", "o": [], "r": 4, "p": []}, {"n": "수학1", "c": 3, "k": "BSM수학", "o": [], "r": 1, "p": []}, {"n": "기초과학 Set 택1 (물리학+실험 / 생명과학+실험 / 화학+실험)", "c": 4, "k": "BSM기초과학", "o": [], "r": 4, "p": []}, {"n": "확률및통계1", "c": 3, "k": "전공기초", "o": [], "r": 3, "p": []}, {"n": "컴퓨터프로그래밍및실습", "c": 4, "k": "전공필수", "o": [], "r": 1, "p": []}, {"n": "그래픽디자인", "c": 3, "k": "전공필수", "o": [], "r": 1, "p": []}, {"n": "자료구조", "c": 3, "k": "전공필수", "o": [], "r": 4, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "인공지능입문", "c": 3, "k": "전공필수", "o": [], "r": 3, "p": []}, {"n": "미디어프로젝트(종합설계)", "c": 3, "k": "전공필수", "o": [], "r": 7, "p": []}, {"n": "창의미디어", "c": 3, "k": "전공선택", "o": [], "r": 1, "p": []}, {"n": "발상과시각화", "c": 3, "k": "전공선택", "o": [], "r": 2, "p": []}, {"n": "3D그래픽디자인", "c": 3, "k": "전공선택", "o": [], "r": 3, "p": []}, {"n": "디지털사운드기초", "c": 3, "k": "전공선택", "o": [], "r": 3, "p": []}, {"n": "모바일프로그래밍", "c": 4, "k": "전공선택", "o": [], "r": 3, "p": []}, {"n": "미디어심리학", "c": 3, "k": "전공선택", "o": [], "r": 3, "p": []}, {"n": "미디어통계", "c": 3, "k": "전공선택", "o": [], "r": 3, "p": []}, {"n": "스토리텔링", "c": 3, "k": "전공선택", "o": [], "r": 3, "p": []}, {"n": "메타버스콘텐츠기획", "c": 3, "k": "전공선택", "o": [], "r": 3, "p": []}, {"n": "미디어와창업", "c": 3, "k": "전공선택", "o": [], "r": 3, "p": []}, {"n": "객체지향프로그래밍및실습", "c": 4, "k": "전공선택", "o": [], "r": 4, "p": []}, {"n": "게임의이해", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": []}, {"n": "3D어셋크리에이션", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": []}, {"n": "3D캐릭터애니메이션", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": []}, {"n": "뉴미디어와디지털방송", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": []}, {"n": "디지털타이포그라피", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": []}, {"n": "미디어애널리틱스", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": []}, {"n": "메타버스프로그래밍", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": []}, {"n": "비주얼커뮤니케이션디자인", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": []}, {"n": "영상제작미학", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": []}, {"n": "컴퓨터그래픽스", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": []}, {"n": "크리에이티브미디어프로그래밍", "c": 4, "k": "전공선택", "o": [], "r": 4, "p": []}, {"n": "GPU프로그래밍", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "게임엔진프로그래밍", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "미디어산업혁명기획", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "미디어융합연구", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "미디어조사방법론", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "영상연출", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "영상처리", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "VFX스튜디오", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "운영체제", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "인포그래픽스", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "몰입형미디어프로그래밍", "c": 4, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "3D캐릭터리깅", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "그래픽디자인역사의이해와응용", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "디지털휴먼파이프라인", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "몰입형콘텐츠제작", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "콘텐츠사운드제작", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "데이터베이스", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "데이터사이언스개론", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "미디어집중교육1", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "알고리즘", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "영상편집론", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "인디게임제작", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "인터랙션디자인", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "인터페이스디자인", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "정보디자인", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "컴퓨터비젼", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "메타버스와지식재산", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "실전웹서비스개발", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "애니메이션이론", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "UX디자인", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "미디어집중교육2", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "모션그래픽디자인", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "시리어스게임", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "영상사운드제작", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "미디어소프트웨어엔지니어링", "c": 4, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "기계학습", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "데이터마이닝", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": []}, {"n": "렌더링이론", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": []}, {"n": "가상인간개발과서비스기획", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": []}, {"n": "미디어현장실습1", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": [], "g": "현장실습"}, {"n": "미디어현장실습2", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": [], "g": "현장실습"}, {"n": "미디어현장실습3", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": [], "g": "현장실습"}, {"n": "미디어현장실습4", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": [], "g": "현장실습"}, {"n": "미디어현장실습5", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": [], "g": "현장실습"}, {"n": "창업실습1", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": [], "g": "현장실습"}, {"n": "창업실습2", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": [], "g": "현장실습"}, {"n": "창업현장실습1", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": [], "g": "현장실습"}, {"n": "창업현장실습2", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": [], "g": "현장실습"}, {"n": "해외인턴십1", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": [], "g": "현장실습"}, {"n": "해외인턴십2", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": [], "g": "현장실습"}, {"n": "이산수학", "c": 3, "k": "일반선택", "o": [], "r": 3, "p": []}], "note": "2025 요람. 개설학기는 제한 없음으로 두고 권장학기만 표기(연 1회 개설 과목 많음 — 요람 확인 권장)."}, {"id": "kdef", "name": "국방디지털융합학과", "years": 4, "plans": [{"id": "kdef", "name": "국방디지털융합학과 (공군 계약학과)", "type": "major", "color": "#2450C8", "rules": [{"t": "total", "min": 140, "label": "총 졸업학점 140"}, {"t": "cat", "cat": "대학필수", "min": 23, "label": "대학필수 23학점"}, {"t": "cat", "cat": "BSM수학", "min": 6, "label": "BSM 수학 6학점"}, {"t": "cat", "cat": "BSM기초과학", "min": 4, "label": "BSM 기초과학 4학점"}, {"t": "cat", "cat": "전공기초", "min": 6, "label": "전공기초 6학점 (세부 과목은 요람 확인)"}, {"t": "cat", "cat": "전공필수", "min": 77, "label": "전공필수 77학점 (지정 27과목)"}, {"t": "cat", "cat": "전공선택", "min": 10, "label": "전공선택 10학점"}, {"t": "pick", "min": 3, "label": "전선 필수 택1 — 현대암호이론및응용 / 회로이론", "from": ["현대암호이론및응용", "회로이론"]}, {"t": "manual", "label": "전공 이수원칙 — 심화과정 이수 또는 복수/부전공"}, {"t": "gpa", "min": 2.5, "label": "평점 2.5 이상 (성적 입력 시 자동 계산)"}, {"t": "manual", "label": "공인영어 성적 (TOEIC 750 · OPIc IM3 등)"}]}], "courses": [{"n": "아주희망 전공진로탐색", "c": 1, "k": "대학필수", "o": [], "r": 1, "p": []}, {"n": "아주인-신입생을 위한 마중물", "c": 1, "k": "대학필수", "o": [], "r": 1, "p": []}, {"n": "아주상상프로젝트", "c": 3, "k": "대학필수", "o": [], "r": 1, "p": []}, {"n": "영어", "c": 3, "k": "대학필수", "o": [], "r": 1, "p": []}, {"n": "대학글쓰기", "c": 3, "k": "대학필수", "o": [], "r": 2, "p": []}, {"n": "영역별교양 1", "c": 3, "k": "대학필수", "o": [], "r": 2, "p": []}, {"n": "영역별교양 2", "c": 3, "k": "대학필수", "o": [], "r": 3, "p": []}, {"n": "영역별교양 3", "c": 3, "k": "대학필수", "o": [], "r": 4, "p": []}, {"n": "영역별교양 4", "c": 3, "k": "대학필수", "o": [], "r": 5, "p": []}, {"n": "수학1", "c": 3, "k": "BSM수학", "o": [], "r": 1, "p": []}, {"n": "수학2", "c": 3, "k": "BSM수학", "o": [], "r": 2, "p": []}, {"n": "물리학", "c": 3, "k": "BSM기초과학", "o": [], "r": 1, "p": []}, {"n": "물리학실험", "c": 1, "k": "BSM기초과학", "o": [], "r": 1, "p": []}, {"n": "확률및통계1", "c": 3, "k": "전공기초", "o": [], "r": 3, "p": []}, {"n": "선형대수1", "c": 3, "k": "전공기초", "o": [], "r": 4, "p": []}, {"n": "항공이론", "c": 3, "k": "전공필수", "o": [], "r": 1, "p": []}, {"n": "이산수학", "c": 3, "k": "전공필수", "o": [], "r": 1, "p": []}, {"n": "리더십", "c": 3, "k": "전공필수", "o": [], "r": 2, "p": []}, {"n": "컴퓨터프로그래밍및실습", "c": 4, "k": "전공필수", "o": [], "r": 2, "p": []}, {"n": "항공력의역할", "c": 3, "k": "전공필수", "o": [], "r": 3, "p": []}, {"n": "국방진로탐색1", "c": 1, "k": "전공필수", "o": [], "r": 3, "p": []}, {"n": "자료구조", "c": 3, "k": "전공필수", "o": [], "r": 3, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "객체지향프로그래밍및실습", "c": 4, "k": "전공필수", "o": [], "r": 3, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "컴퓨터네트워크", "c": 3, "k": "전공필수", "o": [], "r": 3, "p": []}, {"n": "항공전사", "c": 3, "k": "전공필수", "o": [], "r": 4, "p": []}, {"n": "국방AI입문", "c": 3, "k": "전공필수", "o": [], "r": 4, "p": []}, {"n": "신호및시스템", "c": 3, "k": "전공필수", "o": [], "r": 4, "p": []}, {"n": "알고리즘", "c": 3, "k": "전공필수", "o": [], "r": 4, "p": ["자료구조"]}, {"n": "컴퓨터구조", "c": 3, "k": "전공필수", "o": [], "r": 4, "p": []}, {"n": "국방진로탐색2", "c": 1, "k": "전공필수", "o": [], "r": 5, "p": []}, {"n": "확률과정", "c": 3, "k": "전공필수", "o": [], "r": 5, "p": []}, {"n": "정보보호", "c": 3, "k": "전공필수", "o": [], "r": 5, "p": []}, {"n": "기계학습", "c": 3, "k": "전공필수", "o": [], "r": 5, "p": ["자료구조"]}, {"n": "국방무기체계", "c": 3, "k": "전공필수", "o": [], "r": 6, "p": []}, {"n": "항공전자시스템", "c": 3, "k": "전공필수", "o": [], "r": 6, "p": []}, {"n": "운영체제", "c": 3, "k": "전공필수", "o": [], "r": 6, "p": []}, {"n": "무선네트워크", "c": 3, "k": "전공필수", "o": [], "r": 6, "p": ["컴퓨터네트워크"]}, {"n": "국방진로탐색3", "c": 1, "k": "전공필수", "o": [], "r": 7, "p": []}, {"n": "레이더시스템", "c": 3, "k": "전공필수", "o": [], "r": 7, "p": []}, {"n": "국방통신네트워크", "c": 3, "k": "전공필수", "o": [], "r": 7, "p": []}, {"n": "C4I시스템", "c": 3, "k": "전공필수", "o": [], "r": 7, "p": []}, {"n": "국방정보융합", "c": 3, "k": "전공필수", "o": [], "r": 8, "p": []}, {"n": "현대암호이론및응용", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": []}, {"n": "회로이론", "c": 3, "k": "전공선택", "o": [], "r": 4, "p": []}, {"n": "데이터베이스", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "통신시스템", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "자동제어", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "디지털회로", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "네트워크보안및응용", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": []}, {"n": "국방ICT프로젝트1", "c": 2, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "데이터마이닝", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "사이버보안운영개론", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "블록체인과 IoT", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": []}, {"n": "시스템소프트웨어보안", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "국방ICT프로젝트2", "c": 2, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "컴퓨터비젼", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "컴퓨터그래픽스", "c": 3, "k": "전공선택", "o": [], "r": 7, "p": []}, {"n": "전술데이터링크시스템", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": []}, {"n": "국방ICT프로젝트3", "c": 2, "k": "전공선택", "o": [], "r": 8, "p": []}, {"n": "소프트웨어공학", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": []}, {"n": "인간과컴퓨터상호작용", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": []}, {"n": "인공지능", "c": 3, "k": "전공선택", "o": [], "r": 8, "p": []}, {"n": "국방자율현장실습", "c": 3, "k": "전공선택", "o": [], "r": 5, "p": [], "g": "현장실습"}, {"n": "국방표준현장실습", "c": 3, "k": "전공선택", "o": [], "r": 6, "p": [], "g": "현장실습"}], "note": "2025 요람. 공군 조종장학생 대상 계약학과 — 평점 기준이 2.5로 타과보다 높음."}], "micros": [{"id": "aisec", "name": "지능형보안 마이크로전공", "plan": {"id": "aisec", "name": "지능형보안 마이크로전공", "type": "micro", "color": "#C0266B", "rules": [{"t": "pick", "min": 9, "label": "편성과목 중 9학점", "from": ["기계학습", "정보보호", "네트워크보안및응용", "디지털포렌식", "빅데이터응용보안", "빅데이터와개인정보보호", "딥러닝이론및실습(대학원)", "지능형사이버보안(대학원)"]}]}, "courses": [{"n": "네트워크보안및응용", "c": 3, "k": "일반선택", "o": [], "r": 5, "p": ["컴퓨터프로그래밍및실습"]}, {"n": "빅데이터응용보안", "c": 3, "k": "일반선택", "o": [], "r": 7, "p": []}, {"n": "빅데이터와개인정보보호", "c": 3, "k": "일반선택", "o": [], "r": 8, "p": []}, {"n": "딥러닝이론및실습(대학원)", "c": 3, "k": "일반선택", "o": [], "r": 8, "p": []}, {"n": "지능형사이버보안(대학원)", "c": 3, "k": "일반선택", "o": [], "r": 8, "p": []}, {"n": "기계학습", "c": 3, "k": "일반선택", "o": [], "r": 5, "p": ["자료구조"]}, {"n": "정보보호", "c": 3, "k": "일반선택", "o": [], "r": 5, "p": []}, {"n": "디지털포렌식", "c": 3, "k": "일반선택", "o": [], "r": 6, "p": []}]}, {"id": "medai", "name": "의료인공지능 마이크로전공", "plan": {"id": "medai", "name": "의료인공지능 마이크로전공", "type": "micro", "color": "#0E9F8A", "rules": [{"t": "req", "course": "의료인공지능", "subs": ["기계학습", "인공지능", "IE기계학습", "IE빅데이터분석"], "label": "전필 · 의료인공지능 (대체이수 가능)"}, {"t": "req", "course": "의과학의 이해", "subs": ["몸의 기능과 조절", "몸의구조 1", "인체생리학1, 2", "인체해부생리학(대학원)"], "label": "전필 · 의과학의 이해 (대체이수 가능)"}, {"t": "pick", "min": 3, "label": "전공선택 3학점", "from": ["의료인공지능실습", "산학연병 협동연구프로젝트"]}, {"t": "pick", "min": 3, "label": "연계인정과목 3학점", "from": ["IE기계학습", "IE빅데이터분석", "기계학습", "다변량자료분석", "대화형프로그래밍", "데이터마이닝", "데이터베이스", "바이오인포매틱스", "빅데이터해석", "생물통계", "수리통계학", "신약개발론", "알고리즘", "약학통계와데이터분석", "의약품정보학", "임상시험과 성과연구", "컴퓨터활용을 통한 의과학자료 처리 및 분석", "통계자료분석 및 실습(캡스톤디자인)", "확률및통계1", "확률및통계2/선형대수1 택1", "회귀분석"]}, {"t": "manual", "label": "비교과 1개 이상 (사업단 워크숍·심포지엄·부트캠프 등)"}]}, "courses": [{"n": "의료인공지능", "c": 3, "k": "일반선택", "o": [], "r": 5, "p": []}, {"n": "의과학의 이해", "c": 3, "k": "일반선택", "o": [], "r": 6, "p": []}, {"n": "의료인공지능실습", "c": 3, "k": "일반선택", "o": [], "r": 7, "p": ["의료인공지능"]}, {"n": "산학연병 협동연구프로젝트", "c": 3, "k": "일반선택", "o": [], "r": 7, "p": []}]}, {"id": "aiot", "name": "AIoT 마이크로전공", "plan": {"id": "aiot", "name": "AIoT 마이크로전공", "type": "micro", "color": "#B4560F", "rules": [{"t": "pick", "min": 9, "label": "편성과목 중 9학점", "from": ["기계학습", "웹시스템설계", "지능형사물인터넷", "네트워크소프트웨어", "AI임베디드시스템", "AIoT실시간서비스설계", "AI통신네트워크"]}]}, "courses": [{"n": "기계학습", "c": 3, "k": "일반선택", "o": [], "r": 5, "p": ["자료구조"]}, {"n": "웹시스템설계", "c": 4, "k": "일반선택", "o": [], "r": 6, "p": []}, {"n": "지능형사물인터넷", "c": 3, "k": "일반선택", "o": [], "r": 6, "p": ["운영체제"]}, {"n": "네트워크소프트웨어", "c": 3, "k": "일반선택", "o": [], "r": 6, "p": ["컴퓨터네트워크"]}, {"n": "AI임베디드시스템", "c": 3, "k": "일반선택", "o": [], "r": 7, "p": []}, {"n": "AIoT실시간서비스설계", "c": 3, "k": "일반선택", "o": [], "r": 7, "p": []}, {"n": "AI통신네트워크", "c": 3, "k": "일반선택", "o": [], "r": 8, "p": []}]}, {"id": "aim", "name": "인공지능 마이크로전공", "plan": {"id": "aim", "name": "인공지능 마이크로전공", "type": "micro", "color": "#7C3AED", "rules": [{"t": "pick", "min": 9, "label": "편성과목 중 9학점", "from": ["기계학습", "데이터마이닝", "AI집중교육1", "AI집중교육2", "컴퓨터비젼", "인공지능컴퓨터시스템", "인공지능", "딥러닝이론및실습(대학원)", "자연어처리(대학원)", "인공지능창업론(대학원)"]}]}, "courses": [{"n": "기계학습", "c": 3, "k": "일반선택", "o": [], "r": 5, "p": ["자료구조"]}, {"n": "데이터마이닝", "c": 3, "k": "일반선택", "o": [], "r": 6, "p": []}, {"n": "AI집중교육1", "c": 6, "k": "일반선택", "o": [], "r": 6, "p": []}, {"n": "AI집중교육2", "c": 6, "k": "일반선택", "o": [], "r": 6, "p": []}, {"n": "컴퓨터비젼", "c": 3, "k": "일반선택", "o": [], "r": 7, "p": []}, {"n": "인공지능컴퓨터시스템", "c": 3, "k": "일반선택", "o": [], "r": 7, "p": []}, {"n": "인공지능", "c": 3, "k": "일반선택", "o": [], "r": 8, "p": []}, {"n": "딥러닝이론및실습(대학원)", "c": 3, "k": "일반선택", "o": [], "r": 8, "p": []}, {"n": "자연어처리(대학원)", "c": 3, "k": "일반선택", "o": [], "r": 8, "p": []}, {"n": "인공지능창업론(대학원)", "c": 3, "k": "일반선택", "o": [], "r": 8, "p": []}]}, {"id": "aiip", "name": "인공지능지식재산 마이크로전공", "plan": {"id": "aiip", "name": "인공지능지식재산 마이크로전공", "type": "micro", "color": "#946200", "rules": [{"t": "req", "course": "발명과 특허", "label": "전필 · 발명과 특허"}, {"t": "req", "course": "자기주도프로젝트", "label": "전필 · 자기주도프로젝트"}, {"t": "pick", "min": 3, "label": "전공선택 3학점", "from": ["기계학습", "데이터베이스", "데이터마이닝", "인공지능"]}]}, "courses": [{"n": "발명과 특허", "c": 3, "k": "일반선택", "o": [], "r": 2, "p": []}, {"n": "자기주도프로젝트", "c": 3, "k": "일반선택", "o": [], "r": 6, "p": []}, {"n": "기계학습", "c": 3, "k": "일반선택", "o": [], "r": 5, "p": ["자료구조"]}, {"n": "데이터베이스", "c": 3, "k": "일반선택", "o": [], "r": 5, "p": []}, {"n": "데이터마이닝", "c": 3, "k": "일반선택", "o": [], "r": 6, "p": []}, {"n": "인공지능", "c": 3, "k": "일반선택", "o": [], "r": 8, "p": []}]}, {"id": "bchain", "name": "블록체인 마이크로전공", "plan": {"id": "bchain", "name": "블록체인 마이크로전공", "type": "micro", "color": "#4F6F1F", "rules": [{"t": "pick", "min": 9, "label": "편성과목 중 9학점", "from": ["데이터마이닝", "현대암호이론및응용", "시스템소프트웨어보안", "네트워크보안및응용", "블록체인과 IoT", "분산시스템", "블록체인과산업보안"]}]}, "courses": [{"n": "데이터마이닝", "c": 3, "k": "일반선택", "o": [], "r": 6, "p": []}, {"n": "현대암호이론및응용", "c": 3, "k": "일반선택", "o": [], "r": 6, "p": []}, {"n": "시스템소프트웨어보안", "c": 3, "k": "일반선택", "o": [], "r": 4, "p": []}, {"n": "네트워크보안및응용", "c": 3, "k": "일반선택", "o": [], "r": 5, "p": []}, {"n": "블록체인과 IoT", "c": 3, "k": "일반선택", "o": [], "r": 6, "p": []}, {"n": "분산시스템", "c": 3, "k": "일반선택", "o": [], "r": 7, "p": []}, {"n": "블록체인과산업보안", "c": 3, "k": "일반선택", "o": [], "r": 7, "p": []}]}, {"id": "bigip", "name": "빅데이터지식재산 마이크로전공", "plan": {"id": "bigip", "name": "빅데이터지식재산 마이크로전공", "type": "micro", "color": "#8A2E2E", "rules": [{"t": "req", "course": "지식재산과기술사업화", "label": "전필 · 지식재산과기술사업화"}, {"t": "req", "course": "정보보호법제도와IP정책", "label": "전필 · 정보보호법제도와IP정책"}, {"t": "pick", "min": 3, "label": "전공선택 3학점", "from": ["디지털포렌식", "빅데이터응용보안", "사이버보안사례특강"]}]}, "courses": [{"n": "지식재산과기술사업화", "c": 3, "k": "일반선택", "o": [], "r": 5, "p": []}, {"n": "정보보호법제도와IP정책", "c": 3, "k": "일반선택", "o": [], "r": 3, "p": []}, {"n": "디지털포렌식", "c": 3, "k": "일반선택", "o": [], "r": 6, "p": []}, {"n": "빅데이터응용보안", "c": 3, "k": "일반선택", "o": [], "r": 7, "p": []}, {"n": "사이버보안사례특강", "c": 3, "k": "일반선택", "o": [], "r": 8, "p": []}]}, {"id": "dhuman", "name": "디지털휴먼 마이크로전공", "plan": {"id": "dhuman", "name": "디지털휴먼 마이크로전공", "type": "micro", "color": "#3A6EA5", "rules": [{"t": "pick", "min": 9, "label": "편성과목 중 9학점", "from": ["컴퓨터그래픽스", "3D캐릭터애니메이션", "디지털휴먼파이프라인", "3D캐릭터리깅", "애니메이션이론", "가상인간개발과서비스기획"]}]}, "courses": [{"n": "컴퓨터그래픽스", "c": 3, "k": "일반선택", "o": [], "r": 7, "p": []}, {"n": "3D캐릭터애니메이션", "c": 3, "k": "일반선택", "o": [], "r": 5, "p": []}, {"n": "디지털휴먼파이프라인", "c": 3, "k": "일반선택", "o": [], "r": 6, "p": []}, {"n": "3D캐릭터리깅", "c": 3, "k": "일반선택", "o": [], "r": 6, "p": []}, {"n": "애니메이션이론", "c": 3, "k": "일반선택", "o": [], "r": 5, "p": []}, {"n": "가상인간개발과서비스기획", "c": 3, "k": "일반선택", "o": [], "r": 7, "p": []}]}, {"id": "metaip", "name": "메타버스(AR·VR)지식재산 마이크로전공", "plan": {"id": "metaip", "name": "메타버스(AR·VR)지식재산 마이크로전공", "type": "micro", "color": "#C0266B", "rules": [{"t": "req", "course": "지식재산과미래기술", "label": "전필 · 지식재산과미래기술"}, {"t": "req", "course": "지식재산과연구개발", "label": "전필 · 지식재산과연구개발"}, {"t": "pick", "min": 3, "label": "전공선택 3학점", "from": ["창의미디어", "몰입형미디어프로그래밍", "메타버스와지식재산"]}]}, "courses": [{"n": "지식재산과미래기술", "c": 3, "k": "일반선택", "o": [], "r": 5, "p": []}, {"n": "지식재산과연구개발", "c": 3, "k": "일반선택", "o": [], "r": 6, "p": []}, {"n": "창의미디어", "c": 3, "k": "일반선택", "o": [], "r": 4, "p": []}, {"n": "몰입형미디어프로그래밍", "c": 4, "k": "일반선택", "o": [], "r": 6, "p": []}, {"n": "메타버스와지식재산", "c": 3, "k": "일반선택", "o": [], "r": 7, "p": []}]}, {"id": "medsci", "name": "의과학 마이크로전공", "plan": {"id": "medsci", "name": "의과학 마이크로전공", "type": "micro", "color": "#0E9F8A", "rules": [{"t": "req", "course": "정밀의학의 이해", "label": "전필 · 정밀의학의 이해"}, {"t": "req", "course": "의약바이오연구입문", "label": "전필 · 의약바이오연구입문"}, {"t": "req", "course": "의과학의 이해", "label": "전필 · 의과학의 이해"}]}, "courses": [{"n": "정밀의학의 이해", "c": 3, "k": "일반선택", "o": [], "r": 4, "p": []}, {"n": "의약바이오연구입문", "c": 3, "k": "일반선택", "o": [], "r": 4, "p": []}, {"n": "의과학의 이해", "c": 3, "k": "일반선택", "o": [], "r": 6, "p": []}]}], "commonCourses": [{"n": "교양선택 (자유)", "c": 3, "k": "교양/일선", "o": [], "r": 2, "p": []}]};
+/* 본전공 + 마이크로 조합으로 학과 데이터 구성 */
+function compose(majorId, microIds){
+  const M = CATALOG.majors.find(m=>m.id===majorId) || CATALOG.majors[0];
+  const plans = M.plans.map(p=>JSON.parse(JSON.stringify(p)));
+  const courses = M.courses.map(c=>({...c}));
+  const names = new Set(courses.map(c=>c.n));
+  for(const mid of microIds){
+    const mc = CATALOG.micros.find(x=>x.id===mid); if(!mc) continue;
+    plans.push(JSON.parse(JSON.stringify(mc.plan)));
+    for(const c of mc.courses) if(!names.has(c.n)){ courses.push({...c}); names.add(c.n); }
+  }
+  for(const c of CATALOG.commonCourses||[]) if(!names.has(c.n)){ courses.push({...c}); names.add(c.n); }
+  return {meta:CATALOG.meta, years:M.years||4, plans, courses,
+          combo:{major:M.id, micros:microIds.filter(id=>CATALOG.micros.some(x=>x.id===id))}};
+}
+let RAW = compose("sw", ["aisec","medai"]);
+const YEARS = ()=> RAW.years || 4;
+
+const CAT_HUES = {"대학필수":"#5B6B8C","BSM수학":"#946200","BSM기초과학":"#946200","전공기초":"#7C3AED","전공필수":"#2450C8","전공선택":"#1B7FBF","일반선택":"#4F6F1F","교양/일선":"#8A8A8A"};
+const catColor = k => CAT_HUES[k] || "#8A8A8A";
+const esc = s => String(s).replace(/[&<>"]/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));
+const GP = {"A+":4.5,"A0":4,"B+":3.5,"B0":3,"C+":2.5,"C0":2,"D+":1.5,"D0":1,"F":0};
+const GRADES = ["A+","A0","B+","B0","C+","C0","D+","D0","F","P"];
+const gradeCls = g => g ? "g"+(g==="P"?"P":g[0]) : "";
+
+/* ── 학기 슬롯: 정규 "0".."7", 계절 "S0".."S3"(여름)/"W0".."W3"(겨울) ── */
+const regLabel = s => `${Math.floor(s/2)+1}-${s%2+1}`;
+function slotLabel(k){ if(/^\d+$/.test(k)) return regLabel(+k); const y=+k.slice(1)+1; return `${y}-${k[0]==="S"?"여름":"겨울"}`; }
+function slotTime(k){ if(/^\d+$/.test(k)){const s=+k; return Math.floor(s/2)*4+(s%2)*2;} const y=+k.slice(1); return k[0]==="S"?y*4+1:y*4+3; }
+const isSeason = k => !/^\d+$/.test(k);
+const SEASON_CAP = 6;
+const allSeasons = ()=>{ const a=[]; for(let y=0;y<YEARS();y++) a.push("S"+y,"W"+y); return a; };
+
+/* ═════════ 상태 ═════════ */
+const S = {
+  assigned:{},        // courseId -> slotKey
+  grades:{},          // courseId -> "A+" ...
+  retake:{},          // courseId -> 원래 슬롯 (assigned===원래슬롯이면 '재수강 예정' 대기)
+  alias:{},           // 원본 과목명 -> 표시 이름
+  edits:{},           // 원본 과목명 -> {c(학점), k(이수구분), r(권장학기)} 덮어쓰기
+  removed:[],         // 숨긴 과목명 목록
+  manual:{}, doneUpTo:0, cap:21, selSem:"0", tab:RAW.plans[0].id, catFilter:"전체",
+  custom:[], seasonal:[]   // 추가된 계절 슬롯 키
+};
+let D = null, dragId = null;
+
+function rebuild(){
+  const list = [...RAW.courses, ...S.custom].map((c,i)=>({...c, id:"c"+i, o:c.o||[], p:c.p||[]}));
+  D = { ...RAW, courses: list
+    .filter(c=>!S.removed.includes(c.n))
+    .map(c=> S.edits[c.n] ? {...c, ...S.edits[c.n]} : c) };
+  D.byName = {}; D.courses.forEach(c=>D.byName[c.n]=c);
+}
+rebuild();
+const dn = c => S.alias[c.n] || c.n;   // 표시 이름
+const isPending = c => S.retake[c.id]!==undefined && S.assigned[c.id]===S.retake[c.id];
+const isRetaken = c => S.retake[c.id]!==undefined && S.assigned[c.id]!==undefined && S.assigned[c.id]!==S.retake[c.id];
+/* 요건에 카운트되는 이수: 배치됨 + 재수강 대기 아님 + F 아님 */
+const counts = c => S.assigned[c.id]!==undefined && !isPending(c) && S.grades[c.id]!=="F";
+
+/* ═════════ 규칙 엔진 ═════════ */
+function calcGPA(){
+  let pts=0, cr=0;
+  for(const c of D.courses){
+    const g = S.grades[c.id];
+    if(S.assigned[c.id]===undefined || isPending(c) || !(g in GP)) continue;
+    pts += GP[g]*c.c; cr += c.c;
+  }
+  return cr ? {gpa:pts/cr, cr} : null;
+}
+function evaluate(){
+  const usage = {}; const results = {};
+  const mark = (c,plan,rule)=>{ (usage[c.id]=usage[c.id]||[]).push({plan:plan.id, planName:plan.name, rule}); };
+  const order = [...D.plans].sort((a,b)=>(a.type==="micro"?0:1)-(b.type==="micro"?0:1));
+  const gpaInfo = calcGPA();
+  for(const plan of order){
+    const used = new Set(); const rows = [];
+    plan.rules.forEach((rule,ri)=>{
+      const key = plan.id+":"+ri;
+      if(rule.t==="total"){
+        const got = D.courses.reduce((s,c)=>counts(c)?s+c.c:s,0);
+        rows.push({key,label:rule.label,ok:got>=rule.min,got,min:rule.min,kind:"bar"});
+      }else if(rule.t==="cat"){
+        const list = D.courses.filter(c=>c.k===rule.cat && counts(c));
+        let sum = list.reduce((s,c)=>s+c.c,0), detail="";
+        if(rule.capGroup){
+          const g = list.filter(c=>c.g===rule.capGroup).reduce((s,c)=>s+c.c,0);
+          if(g>rule.capMax){ sum -= g-rule.capMax; detail = `${rule.capGroup}군 ${g}학점 중 ${rule.capMax}학점만 인정`; }
+        }
+        list.forEach(c=>mark(c,plan,rule.label));
+        rows.push({key,label:rule.label,ok:sum>=rule.min,got:sum,min:rule.min,kind:"bar",detail});
+      }else if(rule.t==="req"){
+        let hit=null, via=false;
+        for(const name of [rule.course,...(rule.subs||[])]){
+          const c = D.byName[name];
+          if(c && counts(c) && !used.has(c.id)){ hit=c; via = name!==rule.course; break; }
+        }
+        if(hit){ used.add(hit.id); mark(hit,plan,rule.label); }
+        rows.push({key,label:rule.label,ok:!!hit,kind:"check",detail:hit?(via?`'${dn(hit)}'(으)로 대체이수`:`'${dn(hit)}' 이수`):"미이수"});
+      }else if(rule.t==="pick"){
+        let sum=0; const picked=[];
+        for(const name of rule.from){
+          if(sum>=rule.min) break;
+          const c = D.byName[name];
+          if(c && counts(c) && !used.has(c.id)){ used.add(c.id); mark(c,plan,rule.label); sum+=c.c; picked.push(dn(c)); }
+        }
+        rows.push({key,label:rule.label,ok:sum>=rule.min,got:sum,min:rule.min,kind:"bar",detail:picked.join(", ")});
+      }else if(rule.t==="gpa"){
+        const ok = !!gpaInfo && gpaInfo.gpa>=rule.min;
+        rows.push({key,label:rule.label,ok,kind:"check",
+          detail: gpaInfo ? `현재 평점 ${gpaInfo.gpa.toFixed(2)} (성적 입력 ${gpaInfo.cr}학점 기준)` : "성적 미입력 — 과목 우클릭으로 성적을 입력하면 자동 계산돼요"});
+      }else if(rule.t==="manual"){
+        rows.push({key,label:rule.label,ok:!!S.manual[key],kind:"manual"});
+      }else if(rule.t==="micro"){
+        const micros = order.filter(p=>p.type==="micro");
+        const done = micros.filter(p=>results[p.id]&&results[p.id].done).length;
+        rows.push({key,label:rule.label,ok:done>=rule.min||!!S.manual[key],got:done,min:rule.min,kind:"micro",manualOk:!!S.manual[key],
+          detail: micros.map(p=>`${results[p.id]&&results[p.id].done?"✓":"○"} ${p.name.replace(" 마이크로전공","")}`).join("  ·  ") + " — 위 마이크로 칩의 요건을 채우면 자동 반영"});
+      }
+    });
+    results[plan.id] = { rules:rows, done:rows.every(r=>r.ok) };
+  }
+  const overlaps = Object.entries(usage)
+    .filter(([,us])=>new Set(us.map(u=>u.plan)).size>=2)
+    .map(([cid,us])=>({course:D.courses.find(c=>c.id===cid), uses:us}));
+  return {results, usage, overlaps, gpaInfo};
+}
+
+function planBadges(c){
+  return D.plans.filter(p=>p.type==="micro" && p.rules.some(r=>
+    (r.t==="pick"&&r.from.includes(c.n)) || (r.t==="req"&&(r.course===c.n||(r.subs||[]).includes(c.n)))));
+}
+function slotCredits(k){
+  let gross=0, net=0;
+  for(const c of D.courses){
+    if(S.assigned[c.id]!==k) continue;
+    gross += c.c;
+    if(!isPending(c) && S.grades[c.id]!=="F") net += c.c;
+  }
+  return {gross, net};
+}
+function warningsFor(c){
+  const k = S.assigned[c.id]; if(k===undefined || isDone(k)) return [];
+  const w=[]; const t = slotTime(k);
+  for(const p of c.p){
+    const pc = D.byName[p];
+    if(pc && (S.assigned[pc.id]===undefined || slotTime(S.assigned[pc.id])>=t || isPending(pc))) w.push(`선수 '${dn(pc)}' 미선행`);
+  }
+  const cap = isSeason(k)?SEASON_CAP:S.cap;
+  if(slotCredits(k).gross>cap) w.push("학기 학점 초과");
+  return w;
+}
+function isDone(k){
+  const d = S.doneUpTo;
+  const threshold = Math.floor(d/2)*4 + (d%2)*2;   // 첫 미완료 정규학기의 time
+  return slotTime(k) < threshold;
+}
+function slotList(){
+  const keys = [...Array(YEARS()*2).keys()].map(String), all=[...keys, ...S.seasonal];
+  return all.sort((a,b)=>slotTime(a)-slotTime(b));
+}
+
+/* ═════════ 렌더 ═════════ */
+function ccHtml(c, past, ev){
+  const warns = warningsFor(c);
+  const dup = new Set((ev.usage[c.id]||[]).map(u=>u.plan)).size>=2;
+  const g = S.grades[c.id];
+  return `<div class="cc ${warns.length?"warn":""} ${isPending(c)?"pending":""}" draggable="true" data-id="${c.id}" title="${esc(warns.join("\n"))}">
+    <span class="stripe" style="background:${catColor(c.k)}"></span>
+    <span class="nm">${past?"✓ ":""}${esc(dn(c))}</span>
+    ${isPending(c)?'<span class="rt">재수강예정</span>':""}${isRetaken(c)?'<span class="rt">↻재수강</span>':""}
+    ${g?`<span class="grade ${gradeCls(g)}">${g}</span>`:""}
+    ${planBadges(c).map(b=>`<span class="dot" style="background:${b.color}" title="${esc(b.name)}"></span>`).join("")}
+    ${dup?'<span class="dup" title="여러 플랜 동시 인정 — 중복인정 확인">◈</span>':""}
+    <span class="cr">${c.c}</span>${warns.length?'<span class="wi">⚠</span>':""}
+    <button class="x" data-un="${c.id}">×</button>
+  </div>`;
+}
+function render(){
+  const ev = evaluate();
+  document.getElementById("subTtl").textContent =
+    RAW.plans[0].name.split(" (")[0] + (RAW.plans.length>1 ? ` 외 ${RAW.plans.length-1}개 플랜` : "");
+  document.getElementById("gpaBadge").textContent = ev.gpaInfo ? `평점 ${ev.gpaInfo.gpa.toFixed(2)}` : "평점 -";
+
+  document.getElementById("chips").innerHTML = D.plans.map(p=>{
+    const r = ev.results[p.id], ok = r.rules.filter(x=>x.ok).length;
+    return `<button class="chip ${r.done?"done":""}" data-tab="${p.id}" style="border-color:${S.tab===p.id?p.color:"var(--line)"}">
+      <b style="color:${p.color}">${esc(p.name)}</b><span>${r.done?"✓ 요건 충족":`요건 ${ok}/${r.rules.length}`}</span></button>`;
+  }).join("");
+
+  const plan = D.plans.find(p=>p.id===S.tab), res = ev.results[S.tab];
+  document.getElementById("rules").innerHTML =
+    `<h2 style="color:${plan.color}">${esc(plan.name)} 요건</h2>` +
+    res.rules.map(r=>{
+      let right = "";
+      if(r.kind==="bar") right = `<span class="num ${r.ok?"ok":""}">${r.got}/${r.min}</span>`;
+      if(r.kind==="count"||r.kind==="micro") right = `<span class="num ${r.ok?"ok":""}">${r.got}/${r.min}개</span>`;
+      if(r.kind==="manual") right = `<input type="checkbox" data-manual="${r.key}" ${r.ok?"checked":""}>`;
+      return `<div class="rule">
+        <div class="row"><span class="lb"><span class="${r.ok?"tick":"untick"}">${r.ok?"✓":"○"}</span> ${esc(r.label)}</span>${right}</div>
+        ${r.kind==="bar"?`<div class="bar"><i style="width:${Math.min(100,(r.got/(r.min||1))*100)}%;background:${plan.color}"></i></div>`:""}
+        ${r.detail?`<div class="dt">${esc(r.detail)}</div>`:""}
+        ${r.kind==="micro"?`<label class="dt" style="display:flex;gap:5px;align-items:center;cursor:pointer;margin-top:4px"><input type="checkbox" data-manual="${r.key}" ${r.manualOk?"checked":""}> 심화과정·복수/부전공 등 다른 경로로 충족 (직접 체크)</label>`:""}
+      </div>`;
+    }).join("");
+
+  document.getElementById("ovlBox").innerHTML = ev.overlaps.length ? `<div class="ovl">
+    <b>중복인정 ${ev.overlaps.length}건 — 학사팀 확인 권장</b>
+    <ul>${ev.overlaps.map(o=>`<li><b style="display:inline">${esc(dn(o.course))}</b> → ${[...new Set(o.uses.map(u=>u.planName))].map(esc).join(" + ")}</li>`).join("")}</ul>
+  </div>` : "";
+
+  document.getElementById("grid").innerHTML = slotList().map(k=>{
+    const list = D.courses.filter(c=>S.assigned[c.id]===k);
+    const {gross, net} = slotCredits(k);
+    const past = isDone(k), season = isSeason(k);
+    const cap = season?SEASON_CAP:S.cap;
+    return `<section class="sem ${S.selSem===k?"sel":""} ${past?"past":""} ${season?"season":""}" data-sem="${k}">
+      <div class="hd"><h3>${slotLabel(k)}${past?'<span class="done-tag">이수완료</span>':""}</h3>
+        <span style="display:flex;align-items:baseline;gap:4px">
+        <span class="cr ${gross>cap?"over":""}">${gross}${net!==gross?`(${net})`:""}학점${gross>cap?" ⚠":""}</span>
+        ${season?`<button class="rm" data-rmseason="${k}" title="계절학기 삭제">✕</button>`:""}</span></div>
+      <div class="list">${ list.length ? list.map(c=>ccHtml(c,past,ev)).join("") : '<div class="empty">여기로 드래그</div>' }</div>
+    </section>`;
+  }).join("");
+
+  const pool = D.courses.filter(c=>S.assigned[c.id]===undefined && (S.catFilter==="전체"||c.k===S.catFilter))
+    .sort((a,b)=>a.r-b.r);
+  document.getElementById("poolCnt").textContent = `(${pool.length})`;
+  document.getElementById("poolHint").innerHTML = `+ 를 누르면 <b>${slotLabel(S.selSem)}</b>에 담겨요 · 색점 = 마이크로전공 관련<br>과목 <b>우클릭</b> → 이름·학점·구분·권장학기 수정, 성적·재수강, 삭제` +
+    (S.removed.length ? ` · <span style="color:#B45309">숨김 ${S.removed.length}개</span> <button data-restoreall style="border:1px solid var(--line);border-radius:6px;padding:0 6px;font-size:10px;font-weight:700;background:#fff;cursor:pointer">복원</button>` : "");
+  document.getElementById("pool").innerHTML = pool.map(c=>`
+    <div class="pc" draggable="true" data-id="${c.id}">
+      <span class="stripe" style="background:${catColor(c.k)}"></span>
+      <div class="body"><div class="nm">${esc(dn(c))}${planBadges(c).map(b=>`<span class="dot" style="background:${b.color}" title="${esc(b.name)}"></span>`).join("")}</div>
+      <div class="mt">${c.c}학점 · ${esc(c.k)} · 권장 ${regLabel(c.r-1)}${c.p.length?` · 선수 ${esc(c.p.map(p=>D.byName[p]?dn(D.byName[p]):p).join(","))}`:""}</div></div>
+      <button class="add" data-add="${c.id}">+</button>
+    </div>`).join("");
+}
+
+/* ═════════ 우클릭 메뉴 ═════════ */
+const menu = document.getElementById("menu");
+function openMenu(x, y, c){
+  const placed = S.assigned[c.id]!==undefined;
+  const g = S.grades[c.id];
+  menu.innerHTML = `
+    <div class="ttl">${esc(dn(c))} · ${c.c}학점 · ${esc(c.k)}</div>
+    <button class="mi" data-act="rename" data-cid="${c.id}">✏️ 이름 바꾸기</button>
+    <button class="mi" data-act="credit" data-cid="${c.id}">🔢 학점 변경 (현재 ${c.c})</button>
+    <button class="mi" data-act="rec" data-cid="${c.id}">📅 권장학기 변경 (현재 ${regLabel(c.r-1)})</button>
+    <div class="sec">이수구분 변경</div>
+    <div class="grades" style="grid-template-columns:repeat(2,1fr)">${cats.map(k=>
+      `<button data-cat="${esc(k)}" data-cid="${c.id}" class="${c.k===k?"on":""}" style="font-size:10px">${esc(k)}</button>`).join("")}</div>
+    ${placed?`<button class="mi" data-act="retake" data-cid="${c.id}">${isPending(c)?"↩ 재수강 예정 해제":"↻ 재수강 예정으로 표시"}</button>`:""}
+    ${placed?`<div class="sec">성적</div>
+    <div class="grades">${GRADES.map(gr=>`<button data-grade="${gr}" data-cid="${c.id}" class="${g===gr?"on":""}">${gr}</button>`).join("")}
+      <button data-grade="" data-cid="${c.id}">지움</button></div>`:""}
+    ${placed?`<button class="mi" data-act="pool" data-cid="${c.id}">⤴ 미배치로 되돌리기</button>`:""}
+    <button class="mi" data-act="del" data-cid="${c.id}" style="color:#DC2626">🗑 과목 삭제 (숨김)</button>
+  `;
+  menu.style.display = "block";
+  const r = menu.getBoundingClientRect();
+  menu.style.left = Math.min(x, innerWidth - r.width - 10) + "px";
+  menu.style.top = Math.min(y, innerHeight - r.height - 10) + "px";
+}
+/* 과목 필드 수정: 직접 추가 과목은 원본을, 내장 과목은 edits 덮어쓰기 */
+function applyEdit(c, patch){
+  const ci = +c.id.slice(1) - RAW.courses.length;
+  if(ci>=0) Object.assign(S.custom[ci], patch);
+  else S.edits[c.n] = {...(S.edits[c.n]||{}), ...patch};
+  rebuild();
+}
+document.addEventListener("contextmenu", e=>{
+  const el = e.target.closest(".cc,.pc");
+  if(!el){ menu.style.display="none"; return; }
+  e.preventDefault();
+  openMenu(e.clientX, e.clientY, D.courses.find(c=>c.id===el.dataset.id));
+});
+document.addEventListener("mousedown", e=>{ if(!menu.contains(e.target)) menu.style.display="none"; });
+menu.addEventListener("click", e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  const c = D.courses.find(x=>x.id===b.dataset.cid);
+  if(b.dataset.grade!==undefined){
+    if(b.dataset.grade) S.grades[c.id]=b.dataset.grade; else delete S.grades[c.id];
+    menu.style.display="none"; render(); return;
+  }
+  if(b.dataset.cat!==undefined){
+    applyEdit(c, {k: b.dataset.cat});
+    menu.style.display="none"; render(); return;
+  }
+  const act = b.dataset.act;
+  if(act==="rename"){
+    const nv = prompt("과목 이름", dn(c));
+    if(nv && nv.trim()){
+      const ci = +c.id.slice(1) - RAW.courses.length;
+      if(ci>=0){ S.custom[ci].n = nv.trim(); rebuild(); }   // 직접 추가한 과목은 원본 이름 자체 변경
+      else S.alias[c.n] = nv.trim();                          // 내장 과목은 표시 이름만 (요건 매칭 유지)
+    }
+  }else if(act==="credit"){
+    const nv = prompt("학점 (0.5 단위 가능)", c.c);
+    const num = parseFloat(nv);
+    if(nv!==null){ if(num>0 && num<=12) applyEdit(c, {c: num}); else { toast("1~12 사이 숫자로 입력하세요"); } }
+  }else if(act==="rec"){
+    const nv = prompt(`권장 학기 번호 (1~${YEARS()*2}, 1=1-1학기)`, c.r);
+    const num = parseInt(nv);
+    if(nv!==null){ if(num>=1 && num<=YEARS()*2) applyEdit(c, {r: num}); else { toast("학기 번호 범위를 확인하세요"); } }
+  }else if(act==="del"){
+    if(confirm(`'${dn(c)}' 과목을 삭제(숨김)할까요?\n풀 하단의 '복원'으로 되돌릴 수 있어요.`)){
+      S.removed.push(c.n);
+      delete S.assigned[c.id]; delete S.grades[c.id]; delete S.retake[c.id];
+      rebuild();
+    }
+  }else if(act==="retake"){
+    if(isPending(c)) delete S.retake[c.id];
+    else S.retake[c.id] = S.assigned[c.id];
+  }else if(act==="pool"){
+    delete S.assigned[c.id]; delete S.retake[c.id];
+  }
+  menu.style.display="none"; render();
+});
+
+/* ═════════ 이벤트 ═════════ */
+function moveCourse(id, slot){
+  const c = D.courses.find(x=>x.id===id);
+  S.assigned[id] = slot;
+  if(S.retake[id]!==undefined && slot===S.retake[id]){ /* 원래 학기로 복귀 → 다시 대기 */ }
+  render();
+}
+document.addEventListener("click", e=>{
+  const t = e.target.closest("[data-tab],[data-add],[data-un],[data-rmseason],[data-restoreall],.sem");
+  if(!t) return;
+  if(t.dataset.restoreall!==undefined){ S.removed = []; rebuild(); render(); return; }
+  if(t.dataset.tab){ S.tab = t.dataset.tab; render(); return; }
+  if(t.dataset.add){ moveCourse(t.dataset.add, S.selSem); return; }
+  if(t.dataset.un){ const id=t.dataset.un; delete S.assigned[id]; delete S.retake[id]; render(); return; }
+  if(t.dataset.rmseason){
+    const k = t.dataset.rmseason;
+    for(const c of D.courses) if(S.assigned[c.id]===k){ delete S.assigned[c.id]; delete S.retake[c.id]; }
+    S.seasonal = S.seasonal.filter(x=>x!==k);
+    if(S.selSem===k) S.selSem="0";
+    render(); return;
+  }
+  if(t.classList.contains("sem")){ S.selSem = t.dataset.sem; render(); }
+});
+document.addEventListener("change", e=>{
+  if(e.target.dataset.manual!==undefined){ S.manual[e.target.dataset.manual] = e.target.checked; render(); }
+});
+document.addEventListener("dragstart", e=>{ const c = e.target.closest("[data-id]"); if(c) dragId = c.dataset.id; });
+document.addEventListener("dragover", e=>{ if(e.target.closest(".sem")) e.preventDefault(); });
+document.addEventListener("drop", e=>{
+  const sem = e.target.closest(".sem"); if(!sem||!dragId) return;
+  e.preventDefault(); moveCourse(dragId, sem.dataset.sem); dragId = null;
+});
+
+/* 헤더 컨트롤 */
+const doneSel = document.getElementById("doneSel");
+function refreshDone(){
+  doneSel.innerHTML = Array.from({length:YEARS()*2+1},(_,i)=>`<option value="${i}">${i===0?"없음":regLabel(i-1)+"까지"}</option>`).join("");
+  if(S.doneUpTo>YEARS()*2) S.doneUpTo=0;
+  doneSel.value = S.doneUpTo;
+}
+refreshDone();
+doneSel.onchange = ()=>{ S.doneUpTo = +doneSel.value; render(); };
+document.getElementById("capIn").onchange = e=>{ S.cap = Math.max(9,Math.min(30,+e.target.value||21)); render(); };
+document.getElementById("clearBtn").onclick = ()=>{ S.assigned={}; S.retake={}; S.grades={}; render(); };
+
+document.getElementById("seasonBtn").onclick = e=>{
+  const avail = allSeasons().filter(k=>!S.seasonal.includes(k));
+  if(!avail.length){ toast("계절학기는 전부 추가돼 있어요"); return; }
+  menu.innerHTML = `<div class="ttl">계절학기 추가</div>` +
+    avail.map(k=>`<button class="mi" data-season="${k}">${slotLabel(k)} 학기</button>`).join("");
+  menu.style.display="block";
+  const r = e.target.getBoundingClientRect();
+  menu.style.left = Math.min(r.left, innerWidth-210)+"px"; menu.style.top = (r.bottom+6)+"px";
+  menu.querySelectorAll("[data-season]").forEach(b=>b.onclick=()=>{
+    S.seasonal.push(b.dataset.season); menu.style.display="none"; render();
+  });
+};
+
+document.getElementById("autoBtn").onclick = ()=>{
+  const next = {...S.assigned};
+  const credits = {}; slotList().forEach(k=>credits[k]=slotCredits(k).gross);
+  const pool = D.courses.filter(c=>next[c.id]===undefined && c.k!=="일반선택" && c.k!=="교양/일선")
+    .sort((a,b)=>a.r-b.r || b.c-a.c);
+  const regs = [...Array(YEARS()*2).keys()].map(String).filter(k=>!isDone(k));
+  for(const c of pool){
+    const start = (c.r||1)-1;
+    const order = [...regs].sort((x,y)=>Math.abs(+x-start)-Math.abs(+y-start) || +x-+y);
+    for(const k of order){
+      if(c.o.length && !c.o.includes(+k+1)) continue;
+      if(credits[k]+c.c>S.cap) continue;
+      if(!c.p.every(p=>{const pc=D.byName[p]; return !pc || (next[pc.id]!==undefined && slotTime(next[pc.id])<slotTime(k));})) continue;
+      next[c.id]=k; credits[k]+=c.c; break;
+    }
+  }
+  S.assigned = next; render();
+  toast("본전공 필수·권장 과목을 배치했어요 — 마이크로·계절 과목은 직접 얹으세요");
+};
+
+/* 풀 필터·커스텀 추가 */
+const catSel = document.getElementById("catSel"), ncCat = document.getElementById("ncCat");
+let cats = [];
+function refreshCats(){
+  cats = [...new Set(RAW.courses.map(c=>c.k))];
+  catSel.innerHTML = ["전체",...cats].map(k=>`<option>${k}</option>`).join("");
+  ncCat.innerHTML = cats.map(k=>`<option ${k==="교양/일선"?"selected":""}>${k}</option>`).join("");
+  if(!cats.includes(S.catFilter)) S.catFilter = "전체";
+  catSel.value = S.catFilter;
+}
+refreshCats();
+catSel.onchange = ()=>{ S.catFilter = catSel.value; render(); };
+document.getElementById("ncAdd").onclick = ()=>{
+  const n = document.getElementById("ncName").value.trim(); if(!n) return;
+  if(D.byName[n]){ toast("이미 있는 과목이에요"); return; }
+  S.custom.push({n, c:+document.getElementById("ncCr").value||3, k:ncCat.value, o:[], r:5, p:[]});
+  document.getElementById("ncName").value = ""; rebuild(); render();
+};
+
+/* JSON 입출력 */
+const modalBg = document.getElementById("modalBg"), ioTa = document.getElementById("ioTa");
+let ioMode = "plan";
+const dumpState = () => JSON.stringify({dept:RAW, assigned:S.assigned, grades:S.grades, retake:S.retake, alias:S.alias,
+  edits:S.edits, removed:S.removed, manual:S.manual, doneUpTo:S.doneUpTo, cap:S.cap, custom:S.custom, seasonal:S.seasonal}, null, 2);
+function setDept(d){
+  if(!d || !Array.isArray(d.plans) || !d.plans.length || !Array.isArray(d.courses)) throw new Error("학과 데이터 형식 아님");
+  RAW = d;
+  Object.assign(S, {assigned:{}, grades:{}, retake:{}, alias:{}, edits:{}, removed:[], manual:{}, custom:[], seasonal:[], selSem:"0", tab:RAW.plans[0].id});
+  rebuild(); refreshCats(); refreshDone();
+}
+function fillPicker(){
+  const majorSel = document.getElementById("majorSel");
+  const cur = RAW.combo || {major:"", micros:[]};
+  majorSel.innerHTML = CATALOG.majors.map(m=>`<option value="${m.id}" ${m.id===cur.major?"selected":""}>${esc(m.name)} (${m.years}년 · ${m.plans[0].rules.find(r=>r.t==="total")?.min||"?"}학점)</option>`).join("");
+  document.getElementById("microChecks").innerHTML = CATALOG.micros.map(mc=>
+    `<label style="display:flex;gap:5px;align-items:center;cursor:pointer">
+      <input type="checkbox" class="microPick" value="${mc.id}" ${cur.micros&&cur.micros.includes(mc.id)?"checked":""}>
+      <span style="width:8px;height:8px;border-radius:99px;background:${mc.plan.color};flex:none"></span>${esc(mc.name.replace(" 마이크로전공",""))}</label>`).join("");
+}
+document.getElementById("applyPick").onclick = ()=>{
+  const micros = [...document.querySelectorAll(".microPick:checked")].map(x=>x.value);
+  setDept(compose(document.getElementById("majorSel").value, micros));
+  modalBg.classList.remove("show"); render();
+  toast("전공 조합을 적용했어요 — 새 계획 시작");
+};
+function applyState(v){
+  if(v.dept){ RAW = v.dept; }
+  Object.assign(S, {assigned:v.assigned||{}, grades:v.grades||{}, retake:v.retake||{}, alias:v.alias||{},
+    edits:v.edits||{}, removed:v.removed||[], manual:v.manual||{}, doneUpTo:v.doneUpTo||0, cap:v.cap||21, custom:v.custom||[], seasonal:v.seasonal||[]});
+  if(!RAW.plans.some(p=>p.id===S.tab)) S.tab = RAW.plans[0].id;
+  if(!/^\d+$/.test(S.selSem) && !S.seasonal.includes(S.selSem)) S.selSem = "0";
+  document.getElementById("capIn").value = S.cap;
+  rebuild(); refreshCats(); refreshDone(); render();
+}
+function openIo(mode){
+  ioMode = mode;
+  document.getElementById("pickerBox").style.display = mode==="dept" ? "block" : "none";
+  if(mode==="dept") fillPicker();
+  document.getElementById("modalTitle").textContent =
+    mode==="plan" ? "계획 JSON 내보내기 / 가져오기" : "학과·전공 조합 선택";
+  document.getElementById("modalDesc").textContent =
+    mode==="plan" ? "복사해 백업하거나, 백업/팀원 계획을 붙여넣고 '가져오기'를 누르세요."
+                  : "요람 카탈로그에서 본전공과 마이크로전공을 조합하세요. 아래 JSON을 직접 수정해 붙여넣을 수도 있어요(고급).";
+  ioTa.value = mode==="plan" ? dumpState() : JSON.stringify(RAW, null, 2);
+  modalBg.classList.add("show");
+}
+document.getElementById("saveBtn").onclick = ()=>{
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([dumpState()], {type:"application/json"}));
+  const d = new Date();
+  a.download = `졸업계획_${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+  toast("파일로 저장했어요 — 다운로드 폴더 확인 (학과 데이터 포함)");
+};
+document.getElementById("openBtn").onclick = ()=>document.getElementById("openFile").click();
+document.getElementById("openFile").onchange = e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{ try{
+    const v = JSON.parse(r.result);
+    if(v.plans && v.courses){ setDept(v); render(); toast("학과 데이터를 불러왔어요 (새 계획 시작)"); }
+    else { applyState(v); toast("불러왔어요"); }
+  }catch(err){ toast("파일 형식 오류"); } };
+  r.readAsText(f); e.target.value = "";
+};
+document.getElementById("ioBtn").onclick = ()=>openIo("plan");
+document.getElementById("deptBtn").onclick = ()=>openIo("dept");
+document.getElementById("ioClose").onclick = ()=>modalBg.classList.remove("show");
+modalBg.onclick = e=>{ if(e.target===modalBg) modalBg.classList.remove("show"); };
+document.getElementById("ioImport").onclick = ()=>{
+  try{
+    const v = JSON.parse(ioTa.value);
+    if(ioMode==="dept"){ setDept(v); render(); toast("학과 데이터를 교체했어요"); }
+    else { applyState(v); toast("가져왔어요"); }
+    modalBg.classList.remove("show");
+  }catch(err){ toast("JSON 형식 오류: " + err.message); }
+};
+
+function toast(m){
+  const t = document.getElementById("toast");
+  t.textContent = m; t.style.display = "block";
+  clearTimeout(t._h); t._h = setTimeout(()=>t.style.display="none", 2500);
+}
+
+render();
+</script>
+</body>
+</html>
